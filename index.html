@@ -224,6 +224,43 @@
             question: { color: 0x2a9d8f, icon: 'fa-question-circle' }
         };
 
+        function createMarkerIcon(type, color) {
+            // Create a canvas for the icon
+            const canvas = document.createElement('canvas');
+            const size = 64;
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            
+            // Draw background circle
+            ctx.beginPath();
+            ctx.arc(size/2, size/2, size/2 - 2, 0, Math.PI * 2);
+            ctx.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
+            ctx.fill();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Simple icon representation based on type
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 24px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            const iconChar = {
+                info: 'i',
+                link: '↗',
+                video: '▶',
+                audio: '♪',
+                warning: '⚠',
+                question: '?'
+            }[type];
+            
+            ctx.fillText(iconChar, size/2, size/2);
+            
+            return canvas;
+        }
+
         function init() {
             setupEventListeners();
             initThreeJS();
@@ -430,7 +467,10 @@
                 scene.remove(previewMarker);
             }
             
-            // Create new preview marker
+            // Create new preview marker group
+            const previewGroup = new THREE.Group();
+
+            // Create sphere
             const geometry = new THREE.SphereGeometry(8, 12, 12);
             const material = new THREE.MeshBasicMaterial({ 
                 color: markerTypes[selectedMarkerType].color,
@@ -438,10 +478,30 @@
                 opacity: 0.6,
                 wireframe: true
             });
-            
-            previewMarker = new THREE.Mesh(geometry, material);
-            previewMarker.position.set(vector.x, vector.y, vector.z);
-            scene.add(previewMarker);
+            const previewSphere = new THREE.Mesh(geometry, material);
+            previewGroup.add(previewSphere);
+
+            // Create preview icon
+            const canvas = createMarkerIcon(selectedMarkerType, markerTypes[selectedMarkerType].color);
+            const texture = new THREE.CanvasTexture(canvas);
+            const iconGeometry = new THREE.PlaneGeometry(24, 24);
+            const iconMaterial = new THREE.MeshBasicMaterial({ 
+                map: texture,
+                transparent: true,
+                opacity: 0.8,
+                side: THREE.DoubleSide
+            });
+            const icon = new THREE.Mesh(iconGeometry, iconMaterial);
+            icon.position.y = 20;
+            previewGroup.add(icon);
+
+            previewGroup.position.set(vector.x, vector.y, vector.z);
+            scene.add(previewGroup);
+
+            // Make icon face camera
+            icon.lookAt(camera.position);
+
+            previewMarker = previewGroup;
             
             // Update visual indicator position
             const indicator = document.getElementById('previewIndicator');
@@ -518,18 +578,39 @@
             currentMarker.description = description;
             currentMarker.url = url;
             
+            const markerGroup = new THREE.Group();
+
+            // Create the sphere
             const geometry = new THREE.SphereGeometry(10, 16, 16);
             const material = new THREE.MeshBasicMaterial({ 
                 color: markerTypes[currentMarker.type].color,
                 transparent: true,
                 opacity: 0.8
             });
-            const markerObject = new THREE.Mesh(geometry, material);
-            markerObject.position.set(...currentMarker.position);
-            markerObject.userData = { markerId: currentMarker.id };
-            scene.add(markerObject);
-            
-            currentMarker.object = markerObject;
+            const markerSphere = new THREE.Mesh(geometry, material);
+            markerGroup.add(markerSphere);
+
+            // Create the icon above the sphere
+            const canvas = createMarkerIcon(currentMarker.type, markerTypes[currentMarker.type].color);
+            const texture = new THREE.CanvasTexture(canvas);
+            const iconGeometry = new THREE.PlaneGeometry(30, 30);
+            const iconMaterial = new THREE.MeshBasicMaterial({ 
+                map: texture,
+                transparent: true,
+                side: THREE.DoubleSide
+            });
+            const icon = new THREE.Mesh(iconGeometry, iconMaterial);
+            icon.position.y = 25; // Position above the sphere
+            markerGroup.add(icon);
+
+            // Make icon always face camera
+            icon.lookAt(camera.position);
+
+            markerGroup.position.set(...currentMarker.position);
+            markerGroup.userData = { markerId: currentMarker.id };
+            scene.add(markerGroup);
+
+            currentMarker.object = markerGroup;
             markers.push(currentMarker);
             cancelMarker();
             updateMarkerList();
@@ -597,9 +678,18 @@
             if (markers.length === 0) return;
             if (confirm(`Are you sure you want to remove all ${markers.length} markers?`)) {
                 markers.forEach(marker => {
-                    scene.remove(marker.object);
-                    marker.object.geometry.dispose();
-                    marker.object.material.dispose();
+                    if (marker.object) {
+                        // Remove all children and dispose their geometries/materials
+                        marker.object.children.forEach(child => {
+                            scene.remove(child);
+                            if (child.geometry) child.geometry.dispose();
+                            if (child.material) {
+                                if (child.material.map) child.material.map.dispose();
+                                child.material.dispose();
+                            }
+                        });
+                        scene.remove(marker.object);
+                    }
                 });
                 markers = [];
                 updateMarkerList();
@@ -741,16 +831,65 @@
 '        const markers = ' + markerJson + ';\n' +
 '        \n' +
 '        markers.forEach(marker => {\n' +
+'            const markerGroup = new THREE.Group();\n' +
+'            \n' +
+'            // Create marker sphere\n' +
 '            const markerGeometry = new THREE.SphereGeometry(10, 16, 16);\n' +
 '            const markerMaterial = new THREE.MeshBasicMaterial({ \n' +
 '                color: marker.color,\n' +
 '                transparent: true,\n' +
 '                opacity: 0.8\n' +
 '            });\n' +
-'            const markerObj = new THREE.Mesh(markerGeometry, markerMaterial);\n' +
-'            markerObj.position.set(marker.position[0], marker.position[1], marker.position[2]);\n' +
-'            markerObj.userData = marker;\n' +
-'            scene.add(markerObj);\n' +
+'            const markerSphere = new THREE.Mesh(markerGeometry, markerMaterial);\n' +
+'            markerGroup.add(markerSphere);\n' +
+'            \n' +
+'            // Create icon\n' +
+'            const iconCanvas = document.createElement("canvas");\n' +
+'            const iconSize = 64;\n' +
+'            iconCanvas.width = iconSize;\n' +
+'            iconCanvas.height = iconSize;\n' +
+'            const iconCtx = iconCanvas.getContext("2d");\n' +
+'            \n' +
+'            // Draw icon background\n' +
+'            iconCtx.beginPath();\n' +
+'            iconCtx.arc(iconSize/2, iconSize/2, iconSize/2 - 2, 0, Math.PI * 2);\n' +
+'            iconCtx.fillStyle = "#" + marker.color.toString(16).padStart(6, "0");\n' +
+'            iconCtx.fill();\n' +
+'            iconCtx.strokeStyle = "#ffffff";\n' +
+'            iconCtx.lineWidth = 2;\n' +
+'            iconCtx.stroke();\n' +
+'            \n' +
+'            // Draw icon character\n' +
+'            iconCtx.fillStyle = "white";\n' +
+'            iconCtx.font = "bold 24px Arial";\n' +
+'            iconCtx.textAlign = "center";\n' +
+'            iconCtx.textBaseline = "middle";\n' +
+'            \n' +
+'            const iconChar = {\n' +
+'                info: "i",\n' +
+'                link: "↗",\n' +
+'                video: "▶",\n' +
+'                audio: "♪",\n' +
+'                warning: "⚠",\n' +
+'                question: "?"\n' +
+'            }[marker.type];\n' +
+'            \n' +
+'            iconCtx.fillText(iconChar, iconSize/2, iconSize/2);\n' +
+'            \n' +
+'            const iconTexture = new THREE.CanvasTexture(iconCanvas);\n' +
+'            const iconGeometry = new THREE.PlaneGeometry(30, 30);\n' +
+'            const iconMaterial = new THREE.MeshBasicMaterial({ \n' +
+'                map: iconTexture,\n' +
+'                transparent: true,\n' +
+'                side: THREE.DoubleSide\n' +
+'            });\n' +
+'            const icon = new THREE.Mesh(iconGeometry, iconMaterial);\n' +
+'            icon.position.y = 25;\n' +
+'            markerGroup.add(icon);\n' +
+'            \n' +
+'            markerGroup.position.set(marker.position[0], marker.position[1], marker.position[2]);\n' +
+'            markerGroup.userData = marker;\n' +
+'            scene.add(markerGroup);\n' +
 '        });\n' +
 '        \n' +
 '        camera.position.set(0, 0, 0.1);\n' +
@@ -877,6 +1016,14 @@
 '        \n' +
 '        function animate() {\n' +
 '            requestAnimationFrame(animate);\n' +
+'            \n' +
+'            // Make marker icons face the camera\n' +
+'            scene.children.forEach(child => {\n' +
+'                if (child.isGroup && child.children[1]) {\n' +
+'                    child.children[1].lookAt(camera.position);\n' +
+'                }\n' +
+'            });\n' +
+'            \n' +
 '            renderer.render(scene, camera);\n' +
 '        }\n' +
 '        animate();\n' +
@@ -924,6 +1071,18 @@
                 camera.rotation.y += 0.002;
                 // Also apply the rotation limit during auto-rotate
                 camera.rotation.x = Math.max(-Math.PI/4, Math.min(Math.PI/4, camera.rotation.x));
+            }
+            
+            // Make marker icons always face the camera
+            markers.forEach(marker => {
+                if (marker.object && marker.object.children[1]) {
+                    marker.object.children[1].lookAt(camera.position);
+                }
+            });
+
+            // Make preview icon face camera
+            if (previewMarker && previewMarker.children[1]) {
+                previewMarker.children[1].lookAt(camera.position);
             }
             
             // Update preview indicator position
