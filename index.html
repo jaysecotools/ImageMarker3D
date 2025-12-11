@@ -325,96 +325,96 @@
             scene.add(sphere);
         }
 
-function setupControls() {
-    const viewer = document.getElementById('viewer');
-    
-    // Create a target vector for camera to look at
-    const target = new THREE.Vector3(0, 0, -1);
-    let targetRotation = new THREE.Euler(0, 0, 0, 'YXZ');
-    
-    viewer.addEventListener('mousedown', (e) => {
-        isMouseDown = true;
-        previousMousePosition = { x: e.clientX, y: e.clientY };
-    });
-    
-    viewer.addEventListener('mousemove', (e) => {
-        if (!isMouseDown) return;
-        
-        const deltaX = e.clientX - previousMousePosition.x;
-        const deltaY = e.clientY - previousMousePosition.y;
-        
-        // Update target rotation
-        targetRotation.y -= deltaX * 0.005;
-        targetRotation.x -= deltaY * 0.005;
-        
-        // Limit vertical rotation to prevent flipping
-        targetRotation.x = Math.max(-Math.PI/2.5, Math.min(Math.PI/2.5, targetRotation.x));
-        
-        // Apply the rotation to a target vector
-        const targetVector = new THREE.Vector3(0, 0, -1);
-        targetVector.applyEuler(targetRotation);
-        
-        // Make camera look at the target direction
-        camera.lookAt(targetVector);
-        
-        previousMousePosition = { x: e.clientX, y: e.clientY };
-    });
-    
-    viewer.addEventListener('mouseup', () => { 
-        isMouseDown = false; 
-    });
-    
-    viewer.addEventListener('wheel', (e) => {
-        const zoomFactor = 1 + e.deltaY * 0.001;
-        camera.fov *= zoomFactor;
-        camera.fov = Math.max(30, Math.min(120, camera.fov));
-        camera.updateProjectionMatrix();
-    });
-    
-    // Touch support
-    viewer.addEventListener('touchstart', (e) => {
-        if (e.touches.length === 1) {
-            isMouseDown = true;
-            previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        function setupControls() {
+            const viewer = document.getElementById('viewer');
+            
+            // Create a target vector for camera to look at
+            const target = new THREE.Vector3(0, 0, -1);
+            let targetRotation = new THREE.Euler(0, 0, 0, 'YXZ');
+            
+            viewer.addEventListener('mousedown', (e) => {
+                isMouseDown = true;
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            });
+            
+            viewer.addEventListener('mousemove', (e) => {
+                if (!isMouseDown) return;
+                
+                const deltaX = e.clientX - previousMousePosition.x;
+                const deltaY = e.clientY - previousMousePosition.y;
+                
+                // Update target rotation
+                targetRotation.y -= deltaX * 0.005;
+                targetRotation.x -= deltaY * 0.005;
+                
+                // Limit vertical rotation to prevent flipping
+                targetRotation.x = Math.max(-Math.PI/2.5, Math.min(Math.PI/2.5, targetRotation.x));
+                
+                // Apply the rotation to a target vector
+                const targetVector = new THREE.Vector3(0, 0, -1);
+                targetVector.applyEuler(targetRotation);
+                
+                // Make camera look at the target direction
+                camera.lookAt(targetVector);
+                
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            });
+            
+            viewer.addEventListener('mouseup', () => { 
+                isMouseDown = false; 
+            });
+            
+            viewer.addEventListener('wheel', (e) => {
+                const zoomFactor = 1 + e.deltaY * 0.001;
+                camera.fov *= zoomFactor;
+                camera.fov = Math.max(30, Math.min(120, camera.fov));
+                camera.updateProjectionMatrix();
+            });
+            
+            // Touch support
+            viewer.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 1) {
+                    isMouseDown = true;
+                    previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                }
+            });
+            
+            viewer.addEventListener('touchmove', (e) => {
+                if (!isMouseDown || e.touches.length !== 1) return;
+                e.preventDefault();
+                
+                const deltaX = e.touches[0].clientX - previousMousePosition.x;
+                const deltaY = e.touches[0].clientY - previousMousePosition.y;
+                
+                // Update target rotation
+                targetRotation.y -= deltaX * 0.005;
+                targetRotation.x -= deltaY * 0.005;
+                
+                // Limit vertical rotation to prevent flipping
+                targetRotation.x = Math.max(-Math.PI/2.5, Math.min(Math.PI/2.5, targetRotation.x));
+                
+                // Apply the rotation to a target vector
+                const targetVector = new THREE.Vector3(0, 0, -1);
+                targetVector.applyEuler(targetRotation);
+                
+                // Make camera look at the target direction
+                camera.lookAt(targetVector);
+                
+                previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            });
+            
+            viewer.addEventListener('touchend', () => { 
+                isMouseDown = false; 
+            });
+            
+            // Also update the resetView function to reset the target rotation
+            const originalResetView = resetView;
+            resetView = function() {
+                originalResetView();
+                targetRotation.set(0, 0, 0);
+                camera.lookAt(new THREE.Vector3(0, 0, -1));
+            };
         }
-    });
-    
-    viewer.addEventListener('touchmove', (e) => {
-        if (!isMouseDown || e.touches.length !== 1) return;
-        e.preventDefault();
-        
-        const deltaX = e.touches[0].clientX - previousMousePosition.x;
-        const deltaY = e.touches[0].clientY - previousMousePosition.y;
-        
-        // Update target rotation
-        targetRotation.y -= deltaX * 0.005;
-        targetRotation.x -= deltaY * 0.005;
-        
-        // Limit vertical rotation to prevent flipping
-        targetRotation.x = Math.max(-Math.PI/2.5, Math.min(Math.PI/2.5, targetRotation.x));
-        
-        // Apply the rotation to a target vector
-        const targetVector = new THREE.Vector3(0, 0, -1);
-        targetVector.applyEuler(targetRotation);
-        
-        // Make camera look at the target direction
-        camera.lookAt(targetVector);
-        
-        previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    });
-    
-    viewer.addEventListener('touchend', () => { 
-        isMouseDown = false; 
-    });
-    
-    // Also update the resetView function to reset the target rotation
-    const originalResetView = resetView;
-    resetView = function() {
-        originalResetView();
-        targetRotation.set(0, 0, 0);
-        camera.lookAt(new THREE.Vector3(0, 0, -1));
-    };
-}
 
         function updatePreviewIndicator() {
             if (!currentImageDataUrl) return;
@@ -634,7 +634,7 @@ function setupControls() {
             document.getElementById('exportModal').classList.remove('hidden');
         }
 
-        // SIMPLE, FIXED EXPORT FUNCTION
+        // UPDATED EXPORT FUNCTION WITH IMPROVED PANNING
         function generateExportCode() {
             const markerData = markers.map(marker => ({
                 type: marker.type,
@@ -656,7 +656,7 @@ function setupControls() {
             const safeImageName = escapeHtml(currentImageName);
             const markerJson = JSON.stringify(markerData);
             
-            // Build the export HTML using string concatenation to avoid template literal issues
+            // Build the export HTML with improved panning
             return '<!DOCTYPE html>\n' +
 '<html lang="en">\n' +
 '<head>\n' +
@@ -755,8 +755,10 @@ function setupControls() {
 '        \n' +
 '        camera.position.set(0, 0, 0.1);\n' +
 '        \n' +
+'        // IMPROVED PANNING SYSTEM - Same as main app\n' +
 '        let isMouseDown = false;\n' +
 '        let previousMousePosition = { x: 0, y: 0 };\n' +
+'        let targetRotation = new THREE.Euler(0, 0, 0, "YXZ");\n' +
 '        \n' +
 '        document.addEventListener("mousedown", (e) => {\n' +
 '            isMouseDown = true;\n' +
@@ -765,12 +767,24 @@ function setupControls() {
 '        \n' +
 '        document.addEventListener("mousemove", (e) => {\n' +
 '            if (!isMouseDown) return;\n' +
+'            \n' +
 '            const deltaX = e.clientX - previousMousePosition.x;\n' +
 '            const deltaY = e.clientY - previousMousePosition.y;\n' +
-'            camera.rotation.y -= deltaX * 0.005;\n' +
-'            camera.rotation.x -= deltaY * 0.005;\n' +
-'            // IMPORTANT: Apply the same rotation limit in exported viewer\n' +
-'            camera.rotation.x = Math.max(-Math.PI/4, Math.min(Math.PI/4, camera.rotation.x));\n' +
+'            \n' +
+'            // Update target rotation\n' +
+'            targetRotation.y -= deltaX * 0.005;\n' +
+'            targetRotation.x -= deltaY * 0.005;\n' +
+'            \n' +
+'            // Limit vertical rotation to prevent flipping\n' +
+'            targetRotation.x = Math.max(-Math.PI/2.5, Math.min(Math.PI/2.5, targetRotation.x));\n' +
+'            \n' +
+'            // Apply the rotation to a target vector\n' +
+'            const targetVector = new THREE.Vector3(0, 0, -1);\n' +
+'            targetVector.applyEuler(targetRotation);\n' +
+'            \n' +
+'            // Make camera look at the target direction\n' +
+'            camera.lookAt(targetVector);\n' +
+'            \n' +
 '            previousMousePosition = { x: e.clientX, y: e.clientY };\n' +
 '        });\n' +
 '        \n' +
@@ -782,6 +796,40 @@ function setupControls() {
 '            camera.fov = Math.max(30, Math.min(120, camera.fov));\n' +
 '            camera.updateProjectionMatrix();\n' +
 '        });\n' +
+'        \n' +
+'        // Touch support\n' +
+'        document.addEventListener("touchstart", (e) => {\n' +
+'            if (e.touches.length === 1) {\n' +
+'                isMouseDown = true;\n' +
+'                previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };\n' +
+'            }\n' +
+'        });\n' +
+'        \n' +
+'        document.addEventListener("touchmove", (e) => {\n' +
+'            if (!isMouseDown || e.touches.length !== 1) return;\n' +
+'            e.preventDefault();\n' +
+'            \n' +
+'            const deltaX = e.touches[0].clientX - previousMousePosition.x;\n' +
+'            const deltaY = e.touches[0].clientY - previousMousePosition.y;\n' +
+'            \n' +
+'            // Update target rotation\n' +
+'            targetRotation.y -= deltaX * 0.005;\n' +
+'            targetRotation.x -= deltaY * 0.005;\n' +
+'            \n' +
+'            // Limit vertical rotation to prevent flipping\n' +
+'            targetRotation.x = Math.max(-Math.PI/2.5, Math.min(Math.PI/2.5, targetRotation.x));\n' +
+'            \n' +
+'            // Apply the rotation to a target vector\n' +
+'            const targetVector = new THREE.Vector3(0, 0, -1);\n' +
+'            targetVector.applyEuler(targetRotation);\n' +
+'            \n' +
+'            // Make camera look at the target direction\n' +
+'            camera.lookAt(targetVector);\n' +
+'            \n' +
+'            previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };\n' +
+'        });\n' +
+'        \n' +
+'        document.addEventListener("touchend", () => { isMouseDown = false; });\n' +
 '        \n' +
 '        const raycaster = new THREE.Raycaster();\n' +
 '        const mouse = new THREE.Vector2();\n' +
