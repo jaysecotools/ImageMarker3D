@@ -63,6 +63,35 @@
         .modal h3 { color: #00b4d8; margin-bottom: 20px; text-align: center; }
         .modal textarea { width: 100%; height: 400px; padding: 15px; background: rgba(255, 255, 255, 0.05); border: 1px solid #444; border-radius: 5px; color: white; font-family: monospace; font-size: 12px; margin-bottom: 20px; resize: none; white-space: pre; overflow-x: auto; }
         .modal-buttons { display: flex; gap: 10px; justify-content: center; }
+        
+        /* Add preview indicator style */
+        .preview-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 40px;
+            border: 3px solid #00ff00;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 100;
+            opacity: 0.7;
+            display: none;
+            box-shadow: 0 0 10px #00ff00;
+        }
+        .preview-indicator::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 10px;
+            height: 10px;
+            background: #00ff00;
+            border-radius: 50%;
+        }
+        
         @media (max-width: 1024px) { .main-container { flex-direction: column; } .left-panel { width: 100%; max-height: 40vh; } }
         @media (max-width: 768px) { .header { flex-direction: column; gap: 10px; text-align: center; } .marker-type-selector { grid-template-columns: repeat(2, 1fr); } }
     </style>
@@ -137,6 +166,9 @@
         <div class="viewer-container">
             <div id="viewer"></div>
             
+            <!-- Add preview indicator -->
+            <div class="preview-indicator" id="previewIndicator"></div>
+            
             <div class="instructions" id="instructions">
                 <i class="fas fa-globe-americas" style="font-size: 48px; color: #00b4d8; margin-bottom: 20px;"></i>
                 <h3>Welcome to the 360° Image Marker Tool</h3>
@@ -179,6 +211,9 @@
         let autoRotate = false;
         let currentImageName = '';
         let currentImageDataUrl = '';
+        let isMouseDown = false;
+        let previousMousePosition = { x: 0, y: 0 };
+        let previewMarker = null; // For showing where marker will be placed
 
         const markerTypes = {
             info: { color: 0x4cc9f0, icon: 'fa-info-circle' },
@@ -193,6 +228,7 @@
             setupEventListeners();
             initThreeJS();
             updateMarkerList();
+            updatePreviewIndicator();
         }
 
         function setupEventListeners() {
@@ -290,24 +326,33 @@
         }
 
         function setupControls() {
-            let isMouseDown = false;
-            let previousMousePosition = { x: 0, y: 0 };
             const viewer = document.getElementById('viewer');
             
             viewer.addEventListener('mousedown', (e) => {
                 isMouseDown = true;
                 previousMousePosition = { x: e.clientX, y: e.clientY };
             });
+            
             viewer.addEventListener('mousemove', (e) => {
                 if (!isMouseDown) return;
+                
                 const deltaX = e.clientX - previousMousePosition.x;
                 const deltaY = e.clientY - previousMousePosition.y;
+                
+                // Update camera rotation - only allow rotation around Y (horizontal) and X (vertical with limits)
                 camera.rotation.y -= deltaX * 0.005;
                 camera.rotation.x -= deltaY * 0.005;
-                camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, camera.rotation.x));
+                
+                // Keep the image upright by restricting X rotation to reasonable limits
+                camera.rotation.x = Math.max(-Math.PI/3, Math.min(Math.PI/3, camera.rotation.x));
+                
                 previousMousePosition = { x: e.clientX, y: e.clientY };
             });
-            viewer.addEventListener('mouseup', () => { isMouseDown = false; });
+            
+            viewer.addEventListener('mouseup', () => { 
+                isMouseDown = false; 
+            });
+            
             viewer.addEventListener('wheel', (e) => {
                 const zoomFactor = 1 + e.deltaY * 0.001;
                 camera.fov *= zoomFactor;
@@ -322,17 +367,54 @@
                     previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
                 }
             });
+            
             viewer.addEventListener('touchmove', (e) => {
                 if (!isMouseDown || e.touches.length !== 1) return;
                 e.preventDefault();
                 const deltaX = e.touches[0].clientX - previousMousePosition.x;
                 const deltaY = e.touches[0].clientY - previousMousePosition.y;
+                
                 camera.rotation.y -= deltaX * 0.005;
                 camera.rotation.x -= deltaY * 0.005;
-                camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, camera.rotation.x));
+                camera.rotation.x = Math.max(-Math.PI/3, Math.min(Math.PI/3, camera.rotation.x));
+                
                 previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
             });
-            viewer.addEventListener('touchend', () => { isMouseDown = false; });
+            
+            viewer.addEventListener('touchend', () => { 
+                isMouseDown = false; 
+            });
+        }
+
+        function updatePreviewIndicator() {
+            // Create or update preview marker
+            const distance = 450;
+            const vector = new THREE.Vector3(0, 0, -1);
+            vector.applyEuler(camera.rotation);
+            vector.multiplyScalar(distance);
+            
+            // Remove existing preview marker
+            if (previewMarker) {
+                scene.remove(previewMarker);
+            }
+            
+            // Create new preview marker
+            const geometry = new THREE.SphereGeometry(8, 12, 12);
+            const material = new THREE.MeshBasicMaterial({ 
+                color: markerTypes[selectedMarkerType].color,
+                transparent: true,
+                opacity: 0.6,
+                wireframe: true
+            });
+            
+            previewMarker = new THREE.Mesh(geometry, material);
+            previewMarker.position.set(vector.x, vector.y, vector.z);
+            scene.add(previewMarker);
+            
+            // Update visual indicator position
+            const indicator = document.getElementById('previewIndicator');
+            indicator.style.display = 'block';
+            indicator.style.borderColor = `#${markerTypes[selectedMarkerType].color.toString(16).padStart(6, '0')}`;
         }
 
         function handleFileUpload(event) {
@@ -654,7 +736,7 @@
 '            const deltaY = e.clientY - previousMousePosition.y;\n' +
 '            camera.rotation.y -= deltaX * 0.005;\n' +
 '            camera.rotation.x -= deltaY * 0.005;\n' +
-'            camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, camera.rotation.x));\n' +
+'            camera.rotation.x = Math.max(-Math.PI/3, Math.min(Math.PI/3, camera.rotation.x));\n' +
 '            previousMousePosition = { x: e.clientX, y: e.clientY };\n' +
 '        });\n' +
 '        \n' +
@@ -757,6 +839,10 @@
         function animate() {
             requestAnimationFrame(animate);
             if (autoRotate) camera.rotation.y += 0.002;
+            
+            // Update preview indicator position
+            updatePreviewIndicator();
+            
             renderer.render(scene, camera);
         }
 
