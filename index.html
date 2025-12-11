@@ -325,68 +325,100 @@
             scene.add(sphere);
         }
 
-        function setupControls() {
-            const viewer = document.getElementById('viewer');
-            
-            viewer.addEventListener('mousedown', (e) => {
-                isMouseDown = true;
-                previousMousePosition = { x: e.clientX, y: e.clientY };
-            });
-            
-            viewer.addEventListener('mousemove', (e) => {
-                if (!isMouseDown) return;
-                
-                const deltaX = e.clientX - previousMousePosition.x;
-                const deltaY = e.clientY - previousMousePosition.y;
-                
-                // Update camera rotation - only allow rotation around Y (horizontal) and X (vertical with limits)
-                camera.rotation.y -= deltaX * 0.005;
-                camera.rotation.x -= deltaY * 0.005;
-                
-                // Keep the image upright by restricting X rotation to reasonable limits
-                camera.rotation.x = Math.max(-Math.PI/3, Math.min(Math.PI/3, camera.rotation.x));
-                
-                previousMousePosition = { x: e.clientX, y: e.clientY };
-            });
-            
-            viewer.addEventListener('mouseup', () => { 
-                isMouseDown = false; 
-            });
-            
-            viewer.addEventListener('wheel', (e) => {
-                const zoomFactor = 1 + e.deltaY * 0.001;
-                camera.fov *= zoomFactor;
-                camera.fov = Math.max(30, Math.min(120, camera.fov));
-                camera.updateProjectionMatrix();
-            });
-            
-            // Touch support
-            viewer.addEventListener('touchstart', (e) => {
-                if (e.touches.length === 1) {
-                    isMouseDown = true;
-                    previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-                }
-            });
-            
-            viewer.addEventListener('touchmove', (e) => {
-                if (!isMouseDown || e.touches.length !== 1) return;
-                e.preventDefault();
-                const deltaX = e.touches[0].clientX - previousMousePosition.x;
-                const deltaY = e.touches[0].clientY - previousMousePosition.y;
-                
-                camera.rotation.y -= deltaX * 0.005;
-                camera.rotation.x -= deltaY * 0.005;
-                camera.rotation.x = Math.max(-Math.PI/3, Math.min(Math.PI/3, camera.rotation.x));
-                
-                previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-            });
-            
-            viewer.addEventListener('touchend', () => { 
-                isMouseDown = false; 
-            });
+function setupControls() {
+    const viewer = document.getElementById('viewer');
+    
+    // Create a target vector for camera to look at
+    const target = new THREE.Vector3(0, 0, -1);
+    let targetRotation = new THREE.Euler(0, 0, 0, 'YXZ');
+    
+    viewer.addEventListener('mousedown', (e) => {
+        isMouseDown = true;
+        previousMousePosition = { x: e.clientX, y: e.clientY };
+    });
+    
+    viewer.addEventListener('mousemove', (e) => {
+        if (!isMouseDown) return;
+        
+        const deltaX = e.clientX - previousMousePosition.x;
+        const deltaY = e.clientY - previousMousePosition.y;
+        
+        // Update target rotation
+        targetRotation.y -= deltaX * 0.005;
+        targetRotation.x -= deltaY * 0.005;
+        
+        // Limit vertical rotation to prevent flipping
+        targetRotation.x = Math.max(-Math.PI/2.5, Math.min(Math.PI/2.5, targetRotation.x));
+        
+        // Apply the rotation to a target vector
+        const targetVector = new THREE.Vector3(0, 0, -1);
+        targetVector.applyEuler(targetRotation);
+        
+        // Make camera look at the target direction
+        camera.lookAt(targetVector);
+        
+        previousMousePosition = { x: e.clientX, y: e.clientY };
+    });
+    
+    viewer.addEventListener('mouseup', () => { 
+        isMouseDown = false; 
+    });
+    
+    viewer.addEventListener('wheel', (e) => {
+        const zoomFactor = 1 + e.deltaY * 0.001;
+        camera.fov *= zoomFactor;
+        camera.fov = Math.max(30, Math.min(120, camera.fov));
+        camera.updateProjectionMatrix();
+    });
+    
+    // Touch support
+    viewer.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 1) {
+            isMouseDown = true;
+            previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
         }
+    });
+    
+    viewer.addEventListener('touchmove', (e) => {
+        if (!isMouseDown || e.touches.length !== 1) return;
+        e.preventDefault();
+        
+        const deltaX = e.touches[0].clientX - previousMousePosition.x;
+        const deltaY = e.touches[0].clientY - previousMousePosition.y;
+        
+        // Update target rotation
+        targetRotation.y -= deltaX * 0.005;
+        targetRotation.x -= deltaY * 0.005;
+        
+        // Limit vertical rotation to prevent flipping
+        targetRotation.x = Math.max(-Math.PI/2.5, Math.min(Math.PI/2.5, targetRotation.x));
+        
+        // Apply the rotation to a target vector
+        const targetVector = new THREE.Vector3(0, 0, -1);
+        targetVector.applyEuler(targetRotation);
+        
+        // Make camera look at the target direction
+        camera.lookAt(targetVector);
+        
+        previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    });
+    
+    viewer.addEventListener('touchend', () => { 
+        isMouseDown = false; 
+    });
+    
+    // Also update the resetView function to reset the target rotation
+    const originalResetView = resetView;
+    resetView = function() {
+        originalResetView();
+        targetRotation.set(0, 0, 0);
+        camera.lookAt(new THREE.Vector3(0, 0, -1));
+    };
+}
 
         function updatePreviewIndicator() {
+            if (!currentImageDataUrl) return;
+            
             // Create or update preview marker
             const distance = 450;
             const vector = new THREE.Vector3(0, 0, -1);
@@ -415,6 +447,7 @@
             const indicator = document.getElementById('previewIndicator');
             indicator.style.display = 'block';
             indicator.style.borderColor = `#${markerTypes[selectedMarkerType].color.toString(16).padStart(6, '0')}`;
+            indicator.style.boxShadow = `0 0 10px #${markerTypes[selectedMarkerType].color.toString(16).padStart(6, '0')}`;
         }
 
         function handleFileUpload(event) {
@@ -736,7 +769,8 @@
 '            const deltaY = e.clientY - previousMousePosition.y;\n' +
 '            camera.rotation.y -= deltaX * 0.005;\n' +
 '            camera.rotation.x -= deltaY * 0.005;\n' +
-'            camera.rotation.x = Math.max(-Math.PI/3, Math.min(Math.PI/3, camera.rotation.x));\n' +
+'            // IMPORTANT: Apply the same rotation limit in exported viewer\n' +
+'            camera.rotation.x = Math.max(-Math.PI/4, Math.min(Math.PI/4, camera.rotation.x));\n' +
 '            previousMousePosition = { x: e.clientX, y: e.clientY };\n' +
 '        });\n' +
 '        \n' +
@@ -838,7 +872,11 @@
 
         function animate() {
             requestAnimationFrame(animate);
-            if (autoRotate) camera.rotation.y += 0.002;
+            if (autoRotate) {
+                camera.rotation.y += 0.002;
+                // Also apply the rotation limit during auto-rotate
+                camera.rotation.x = Math.max(-Math.PI/4, Math.min(Math.PI/4, camera.rotation.x));
+            }
             
             // Update preview indicator position
             updatePreviewIndicator();
