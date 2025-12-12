@@ -49,6 +49,10 @@
         .marker-item-title { font-weight: bold; display: flex; align-items: center; gap: 8px; }
         .marker-item-type { font-size: 0.8rem; padding: 2px 8px; border-radius: 10px; background: rgba(255, 255, 255, 0.1); }
         .marker-item-description { font-size: 0.9rem; color: #aaa; margin-top: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .marker-item-actions { display: flex; gap: 5px; margin-top: 10px; }
+        .marker-action-btn { padding: 4px 10px; border: none; border-radius: 4px; font-size: 0.8rem; cursor: pointer; }
+        .marker-action-btn.edit { background: #00b4d8; color: white; }
+        .marker-action-btn.delete { background: #e63946; color: white; }
         .viewer-container { flex: 1; position: relative; overflow: hidden; }
         #viewer { width: 100%; height: 100%; }
         .viewer-overlay { position: absolute; top: 20px; left: 20px; z-index: 10; }
@@ -92,6 +96,86 @@
             border-radius: 50%;
         }
         
+.instructions { 
+    border: 2px solid #00b4d8;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.7);
+}
+
+        /* Cursor style for marker placement */
+        .marker-cursor {
+            cursor: crosshair !important;
+        }
+        
+        /* NEW: In-world marker info panel */
+        .marker-info-panel {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #00b4d8;
+            max-width: 300px;
+            min-width: 250px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            pointer-events: auto;
+            backdrop-filter: blur(5px);
+            transition: opacity 0.3s ease;
+            font-size: 14px;
+        }
+        
+        .marker-info-panel h4 {
+            color: #00b4d8;
+            margin: 0 0 10px 0;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .marker-info-panel p {
+            margin: 8px 0;
+            line-height: 1.4;
+        }
+        
+        .marker-info-panel a {
+            color: #4cc9f0;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 10px;
+            padding: 6px 12px;
+            background: rgba(76, 201, 240, 0.1);
+            border-radius: 4px;
+            transition: background 0.3s;
+        }
+        
+        .marker-info-panel a:hover {
+            background: rgba(76, 201, 240, 0.2);
+        }
+        
+        .marker-info-panel .close-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: transparent;
+            border: none;
+            color: #aaa;
+            cursor: pointer;
+            font-size: 18px;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s;
+        }
+        
+        .marker-info-panel .close-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        
         @media (max-width: 1024px) { .main-container { flex-direction: column; } .left-panel { width: 100%; max-height: 40vh; } }
         @media (max-width: 768px) { .header { flex-direction: column; gap: 10px; text-align: center; } .marker-type-selector { grid-template-columns: repeat(2, 1fr); } }
     </style>
@@ -124,20 +208,20 @@
 
             <div class="panel-section">
                 <h3><i class="fas fa-map-marker-alt"></i> Add Marker</h3>
-                <button class="button" id="addMarkerBtn">
-                    <i class="fas fa-plus-circle"></i> Add Marker at Current View
-                </button>
+                <div class="marker-type-selector" id="markerTypeSelector">
+                    <div class="marker-type info selected" data-type="info"><i class="fas fa-info-circle"></i><span>Info</span></div>
+                    <div class="marker-type link" data-type="link"><i class="fas fa-link"></i><span>Link</span></div>
+                    <div class="marker-type video" data-type="video"><i class="fas fa-video"></i><span>Video</span></div>
+                    <div class="marker-type audio" data-type="audio"><i class="fas fa-volume-up"></i><span>Audio</span></div>
+                    <div class="marker-type warning" data-type="warning"><i class="fas fa-exclamation-triangle"></i><span>Warning</span></div>
+                    <div class="marker-type question" data-type="question"><i class="fas fa-question-circle"></i><span>Question</span></div>
+                </div>
+                
+                <p style="margin-bottom: 15px; font-size: 0.9rem; color: #aaa;">
+                    <i class="fas fa-mouse-pointer"></i> Select marker type above, then click on the image to place it
+                </p>
                 
                 <div class="marker-form" id="markerForm">
-                    <div class="marker-type-selector" id="markerTypeSelector">
-                        <div class="marker-type info selected" data-type="info"><i class="fas fa-info-circle"></i><span>Info</span></div>
-                        <div class="marker-type link" data-type="link"><i class="fas fa-link"></i><span>Link</span></div>
-                        <div class="marker-type video" data-type="video"><i class="fas fa-video"></i><span>Video</span></div>
-                        <div class="marker-type audio" data-type="audio"><i class="fas fa-volume-up"></i><span>Audio</span></div>
-                        <div class="marker-type warning" data-type="warning"><i class="fas fa-exclamation-triangle"></i><span>Warning</span></div>
-                        <div class="marker-type question" data-type="question"><i class="fas fa-question-circle"></i><span>Question</span></div>
-                    </div>
-                    
                     <input type="text" id="markerTitle" placeholder="Marker Title" maxlength="50">
                     <textarea id="markerDescription" placeholder="Description (optional)"></textarea>
                     <input type="text" id="markerUrl" placeholder="URL (for links/media)" class="hidden">
@@ -145,7 +229,13 @@
                     <div class="form-buttons">
                         <button class="button" id="saveMarkerBtn"><i class="fas fa-save"></i> Save Marker</button>
                         <button class="button secondary" id="cancelMarkerBtn"><i class="fas fa-times"></i> Cancel</button>
+                        <button class="button danger" id="deleteMarkerBtn" style="display: none;"><i class="fas fa-trash"></i> Delete Marker</button>
                     </div>
+                </div>
+                
+                <div class="placement-status" id="placementStatus" style="margin-top: 15px; padding: 10px; background: rgba(0, 180, 216, 0.1); border-radius: 4px; text-align: center; display: none;">
+                    <i class="fas fa-mouse-pointer"></i> <strong>Ready to place marker</strong>
+                    <p style="font-size: 0.9rem; margin-top: 5px; color: #aaa;">Click anywhere on the image to place marker</p>
                 </div>
             </div>
 
@@ -173,15 +263,15 @@
                 <i class="fas fa-globe-americas" style="font-size: 48px; color: #00b4d8; margin-bottom: 20px;"></i>
                 <h3>Welcome to the 360° Image Marker Tool</h3>
                 <p>1. Upload a 360° panoramic image (equirectangular format)</p>
-                <p>2. Use mouse/touch to look around the 3D space</p>
-                <p>3. Click "Add Marker at Current View" to place markers</p>
+                <p>2. Select marker type from the left panel</p>
+                <p>3. Click on the image to place markers</p>
                 <p>4. Customize markers with titles, descriptions, and URLs</p>
                 <p>5. Export as a standalone HTML file for any device</p>
             </div>
             
             <div class="viewer-overlay">
                 <div class="viewer-controls">
-                    <button class="control-btn" id="addMarkerQuickBtn" title="Add Marker">
+                    <button class="control-btn" id="placeMarkerBtn" title="Place Marker Mode">
                         <i class="fas fa-map-marker-alt"></i>
                     </button>
                 </div>
@@ -213,7 +303,11 @@
         let currentImageDataUrl = '';
         let isMouseDown = false;
         let previousMousePosition = { x: 0, y: 0 };
-        let previewMarker = null; // For showing where marker will be placed
+        let previewMarker = null;
+        let editingMarkerId = null;
+        let placementMode = false;
+        let raycaster, mouse;
+        let activeInfoPanel = null; // Track active info panel
 
         const markerTypes = {
             info: { color: 0x4cc9f0, icon: 'fa-info-circle' },
@@ -224,48 +318,79 @@
             question: { color: 0x2a9d8f, icon: 'fa-question-circle' }
         };
 
-        function createMarkerIcon(type, color) {
-            // Create a canvas for the icon
-            const canvas = document.createElement('canvas');
-            const size = 64;
-            canvas.width = size;
-            canvas.height = size;
-            const ctx = canvas.getContext('2d');
-            
-            // Draw background circle
-            ctx.beginPath();
-            ctx.arc(size/2, size/2, size/2 - 2, 0, Math.PI * 2);
-            ctx.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
-            ctx.fill();
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            
-            // Simple icon representation based on type
-            ctx.fillStyle = 'white';
-            ctx.font = 'bold 24px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            
-            const iconChar = {
-                info: 'i',
-                link: '↗',
-                video: '▶',
-                audio: '♪',
-                warning: '⚠',
-                question: '?'
-            }[type];
-            
-            ctx.fillText(iconChar, size/2, size/2);
-            
-            return canvas;
-        }
+function createMarkerIcon(type, color) {
+    // Create a canvas for the icon
+    const canvas = document.createElement('canvas');
+    const size = 128; // Larger canvas for better quality
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    
+    // Draw background circle with subtle gradient
+    const gradient = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+    gradient.addColorStop(0, `#${color.toString(16).padStart(6, '0')}80`);
+    gradient.addColorStop(1, `#${color.toString(16).padStart(6, '0')}`);
+    
+    ctx.beginPath();
+    ctx.arc(size/2, size/2, size/2 - 4, 0, Math.PI * 2);
+    ctx.fillStyle = gradient;
+    ctx.fill();
+    
+    // White border
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    
+    // Font Awesome icons Unicode
+    const iconMap = {
+        info: '\uf05a',       // fa-info-circle
+        link: '\uf0c1',       // fa-link (chain link icon)
+        video: '\uf03d',      // fa-video
+        audio: '\uf028',      // fa-volume-up
+        warning: '\uf071',    // fa-exclamation-triangle
+        question: '\uf059'    // fa-question-circle
+    };
+    
+    // Special styling for link icon to make it more prominent
+    if (type === 'link') {
+        // Draw a subtle background circle for the icon
+        ctx.beginPath();
+        ctx.arc(size/2, size/2, size/3, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.fill();
+        
+        // Draw the link icon
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 72px "Font Awesome 5 Free"';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(iconMap[type], size/2, size/2);
+        
+        // Add a small external link indicator for link markers
+        ctx.beginPath();
+        ctx.arc(size - 15, 15, 8, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+        ctx.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
+        ctx.font = 'bold 12px Arial';
+        ctx.fillText('↗', size - 15, 18);
+    } else {
+        // Draw other icons normally
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 64px "Font Awesome 5 Free"';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(iconMap[type], size/2, size/2);
+    }
+    
+    return canvas;
+}
 
         function init() {
             setupEventListeners();
             initThreeJS();
             updateMarkerList();
-            updatePreviewIndicator();
+            updatePlacementStatus();
         }
 
         function setupEventListeners() {
@@ -295,20 +420,25 @@
                     document.querySelectorAll('.marker-type').forEach(t => t.classList.remove('selected'));
                     this.classList.add('selected');
                     selectedMarkerType = this.dataset.type;
+                    
+                    // Update URL field visibility
                     const urlField = document.getElementById('markerUrl');
                     if (selectedMarkerType === 'link' || selectedMarkerType === 'video' || selectedMarkerType === 'audio') {
                         urlField.classList.remove('hidden');
                     } else {
                         urlField.classList.add('hidden');
                     }
+                    
+                    // Enter placement mode automatically
+                    enablePlacementMode();
                 });
             });
 
             // Buttons
-            document.getElementById('addMarkerBtn').addEventListener('click', addMarkerAtCurrentView);
-            document.getElementById('addMarkerQuickBtn').addEventListener('click', addMarkerAtCurrentView);
+            document.getElementById('placeMarkerBtn').addEventListener('click', enablePlacementMode);
             document.getElementById('saveMarkerBtn').addEventListener('click', saveMarker);
             document.getElementById('cancelMarkerBtn').addEventListener('click', cancelMarker);
+            document.getElementById('deleteMarkerBtn').addEventListener('click', deleteCurrentMarker);
             document.getElementById('clearMarkersBtn').addEventListener('click', clearAllMarkers);
             document.getElementById('resetViewBtn').addEventListener('click', resetView);
             document.getElementById('autoRotateBtn').addEventListener('click', toggleAutoRotate);
@@ -334,33 +464,40 @@
             const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
             scene.add(ambientLight);
             
+            // Initialize raycaster and mouse for click detection
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+            
             createSphere('https://images.unsplash.com/photo-1519681393784-d120267933ba?w=2048&h=1024&fit=crop');
             setupControls();
             window.addEventListener('resize', onWindowResize);
             animate();
         }
 
-        function createSphere(imageUrl) {
-            if (sphere) {
-                scene.remove(sphere);
-                sphere.geometry.dispose();
-                sphere.material.dispose();
-            }
-            
-            const geometry = new THREE.SphereGeometry(500, 60, 40);
-            geometry.scale(-1, 1, 1);
-            
-            const texture = new THREE.TextureLoader().load(imageUrl, () => {
-                document.getElementById('instructions').classList.add('hidden');
-            }, undefined, (error) => {
-                console.error('Error loading image:', error);
-                alert('Error loading image. Please make sure it\'s a valid image file.');
-            });
-            
-            const material = new THREE.MeshBasicMaterial({ map: texture });
-            sphere = new THREE.Mesh(geometry, material);
-            scene.add(sphere);
+function createSphere(imageUrl) {
+    if (sphere) {
+        scene.remove(sphere);
+        sphere.geometry.dispose();
+        sphere.material.dispose();
+    }
+    
+    const geometry = new THREE.SphereGeometry(500, 60, 40);
+    geometry.scale(-1, 1, 1);
+    
+    const texture = new THREE.TextureLoader().load(imageUrl, () => {
+        // Only hide instructions if we're not loading the default placeholder
+        if (!imageUrl.includes('unsplash.com')) {
+            document.getElementById('instructions').classList.add('hidden');
         }
+    }, undefined, (error) => {
+        console.error('Error loading image:', error);
+        alert('Error loading image. Please make sure it\'s a valid image file.');
+    });
+    
+    const material = new THREE.MeshBasicMaterial({ map: texture });
+    sphere = new THREE.Mesh(geometry, material);
+    scene.add(sphere);
+}
 
         function setupControls() {
             const viewer = document.getElementById('viewer');
@@ -370,12 +507,17 @@
             let targetRotation = new THREE.Euler(0, 0, 0, 'YXZ');
             
             viewer.addEventListener('mousedown', (e) => {
+                if (placementMode && e.button === 0) { // Left click only in placement mode
+                    placeMarkerAtClick(e);
+                    return;
+                }
+                
                 isMouseDown = true;
                 previousMousePosition = { x: e.clientX, y: e.clientY };
             });
             
             viewer.addEventListener('mousemove', (e) => {
-                if (!isMouseDown) return;
+                if (!isMouseDown || placementMode) return;
                 
                 const deltaX = e.clientX - previousMousePosition.x;
                 const deltaY = e.clientY - previousMousePosition.y;
@@ -402,6 +544,7 @@
             });
             
             viewer.addEventListener('wheel', (e) => {
+                if (placementMode) return;
                 const zoomFactor = 1 + e.deltaY * 0.001;
                 camera.fov *= zoomFactor;
                 camera.fov = Math.max(30, Math.min(120, camera.fov));
@@ -411,6 +554,10 @@
             // Touch support
             viewer.addEventListener('touchstart', (e) => {
                 if (e.touches.length === 1) {
+                    if (placementMode) {
+                        disablePlacementMode();
+                        return;
+                    }
                     isMouseDown = true;
                     previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
                 }
@@ -453,61 +600,125 @@
             };
         }
 
-        function updatePreviewIndicator() {
-            if (!currentImageDataUrl) return;
-            
-            // Create or update preview marker
-            const distance = 450;
-            const vector = new THREE.Vector3(0, 0, -1);
-            vector.applyEuler(camera.rotation);
-            vector.multiplyScalar(distance);
-            
-            // Remove existing preview marker
-            if (previewMarker) {
-                scene.remove(previewMarker);
+        function enablePlacementMode() {
+            if (!currentImageDataUrl) {
+                alert('Please upload an image first.');
+                return;
             }
             
-            // Create new preview marker group
-            const previewGroup = new THREE.Group();
+            placementMode = true;
+            document.getElementById('viewer').classList.add('marker-cursor');
+            document.getElementById('placementStatus').style.display = 'block';
+            document.getElementById('placeMarkerBtn').innerHTML = '<i class="fas fa-times"></i>';
+            document.getElementById('placeMarkerBtn').title = 'Exit Placement Mode';
+            updatePlacementStatus();
+        }
 
-            // Create sphere
-            const geometry = new THREE.SphereGeometry(8, 12, 12);
-            const material = new THREE.MeshBasicMaterial({ 
-                color: markerTypes[selectedMarkerType].color,
-                transparent: true,
-                opacity: 0.6,
-                wireframe: true
-            });
-            const previewSphere = new THREE.Mesh(geometry, material);
-            previewGroup.add(previewSphere);
+        function disablePlacementMode() {
+            placementMode = false;
+            document.getElementById('viewer').classList.remove('marker-cursor');
+            document.getElementById('placementStatus').style.display = 'none';
+            document.getElementById('placeMarkerBtn').innerHTML = '<i class="fas fa-map-marker-alt"></i>';
+            document.getElementById('placeMarkerBtn').title = 'Place Marker Mode';
+        }
 
-            // Create preview icon
-            const canvas = createMarkerIcon(selectedMarkerType, markerTypes[selectedMarkerType].color);
+        function updatePlacementStatus() {
+            if (placementMode) {
+                document.getElementById('placementStatus').innerHTML = `
+                    <i class="fas fa-mouse-pointer"></i> <strong>Placing ${selectedMarkerType} marker</strong>
+                    <p style="font-size: 0.9rem; margin-top: 5px; color: #aaa;">Click anywhere on the image to place marker</p>
+                `;
+            }
+        }
+
+        function createPreviewMarker(position, type) {
+            // Remove any existing preview marker
+            removePreviewMarker();
+            
+            // Create temporary marker for preview
+            const canvas = createMarkerIcon(type, markerTypes[type].color);
             const texture = new THREE.CanvasTexture(canvas);
-            const iconGeometry = new THREE.PlaneGeometry(24, 24);
-            const iconMaterial = new THREE.MeshBasicMaterial({ 
+            const spriteMaterial = new THREE.SpriteMaterial({ 
                 map: texture,
                 transparent: true,
-                opacity: 0.8,
-                side: THREE.DoubleSide
+                opacity: 0.7,
+                depthWrite: false,
+                depthTest: false,
+                alphaTest: 0.1
             });
-            const icon = new THREE.Mesh(iconGeometry, iconMaterial);
-            icon.position.y = 20;
-            previewGroup.add(icon);
-
-            previewGroup.position.set(vector.x, vector.y, vector.z);
-            scene.add(previewGroup);
-
-            // Make icon face camera
-            icon.lookAt(camera.position);
-
-            previewMarker = previewGroup;
             
-            // Update visual indicator position
-            const indicator = document.getElementById('previewIndicator');
-            indicator.style.display = 'block';
-            indicator.style.borderColor = `#${markerTypes[selectedMarkerType].color.toString(16).padStart(6, '0')}`;
-            indicator.style.boxShadow = `0 0 10px #${markerTypes[selectedMarkerType].color.toString(16).padStart(6, '0')}`;
+            previewMarker = new THREE.Sprite(spriteMaterial);
+            previewMarker.position.copy(position);
+            previewMarker.scale.set(30, 30, 1);
+            previewMarker.renderOrder = 998; // Slightly behind final markers
+            
+            scene.add(previewMarker);
+            return previewMarker;
+        }
+
+        function removePreviewMarker() {
+            if (previewMarker) {
+                scene.remove(previewMarker);
+                if (previewMarker.material) {
+                    if (previewMarker.material.map) previewMarker.material.map.dispose();
+                    previewMarker.material.dispose();
+                }
+                previewMarker = null;
+            }
+        }
+
+        function placeMarkerAtClick(event) {
+            if (!placementMode || !currentImageDataUrl) return;
+            
+            // Calculate mouse position in normalized device coordinates
+            const rect = document.getElementById('viewer').getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+            
+            // Update the picking ray with the camera and mouse position
+            raycaster.setFromCamera(mouse, camera);
+            
+            // Calculate intersection with sphere
+            const intersects = raycaster.intersectObject(sphere);
+            
+            if (intersects.length > 0) {
+                const intersect = intersects[0];
+                const position = intersect.point;
+                
+                // Create preview marker immediately
+                createPreviewMarker(position, selectedMarkerType);
+                
+                // Create new marker data
+                editingMarkerId = null;
+                currentMarker = {
+                    id: Date.now(),
+                    type: selectedMarkerType,
+                    title: `${selectedMarkerType.charAt(0).toUpperCase() + selectedMarkerType.slice(1)} Marker ${markers.length + 1}`,
+                    description: '',
+                    url: '',
+                    position: position.toArray()
+                };
+                
+                // Open marker form
+                document.getElementById('markerTitle').value = currentMarker.title;
+                document.getElementById('markerDescription').value = '';
+                document.getElementById('markerUrl').value = '';
+                document.getElementById('deleteMarkerBtn').style.display = 'none';
+                
+                // Update URL field visibility based on selected type
+                const urlField = document.getElementById('markerUrl');
+                if (selectedMarkerType === 'link' || selectedMarkerType === 'video' || selectedMarkerType === 'audio') {
+                    urlField.classList.remove('hidden');
+                } else {
+                    urlField.classList.add('hidden');
+                }
+                
+                document.getElementById('markerForm').classList.remove('hidden');
+                document.getElementById('markerTitle').focus();
+                
+                // Exit placement mode
+                disablePlacementMode();
+            }
         }
 
         function handleFileUpload(event) {
@@ -529,39 +740,56 @@
                 document.getElementById('currentImageName').textContent = currentImageName;
                 document.getElementById('imageInfo').classList.remove('hidden');
                 document.getElementById('instructions').classList.add('hidden');
-                markers.forEach(marker => scene.remove(marker.object));
-                markers = [];
+                // Clear existing markers from scene but keep in array for re-creation
+                markers.forEach(marker => {
+                    if (marker.object) {
+                        scene.remove(marker.object);
+                    }
+                });
+                // Re-create markers with new image
+                markers.forEach(marker => {
+                    createMarkerObject(marker);
+                });
                 updateMarkerList();
+                // Exit placement mode if active
+                if (placementMode) {
+                    disablePlacementMode();
+                }
+                // Remove preview marker if it exists
+                removePreviewMarker();
             };
             reader.onerror = function() { alert('Error reading file. Please try again.'); };
             reader.readAsDataURL(file);
         }
 
-        function addMarkerAtCurrentView() {
-            if (!currentImageDataUrl) {
-                alert('Please upload an image first.');
-                return;
-            }
+        function createMarkerObject(marker) {
+            // Create billboard sprite with icon
+            const canvas = createMarkerIcon(marker.type, markerTypes[marker.type].color);
+            const texture = new THREE.CanvasTexture(canvas);
             
-            const distance = 450;
-            const vector = new THREE.Vector3(0, 0, -1);
-            vector.applyEuler(camera.rotation);
-            vector.multiplyScalar(distance);
+            // Create sprite material with FIXED rendering settings
+            const spriteMaterial = new THREE.SpriteMaterial({ 
+                map: texture,
+                transparent: true,
+                opacity: 0.9,
+                depthWrite: false,  // FIX: Don't write to depth buffer
+                depthTest: false,   // FIX: Don't test depth (render always)
+                alphaTest: 0.1      // FIX: Use alpha test for better transparency
+            });
             
-            currentMarker = {
-                id: Date.now(),
-                type: selectedMarkerType,
-                title: `Marker ${markers.length + 1}`,
-                description: '',
-                url: '',
-                position: vector.toArray()
-            };
+            // Create sprite (billboard that always faces camera)
+            const sprite = new THREE.Sprite(spriteMaterial);
+            sprite.position.set(...marker.position);
+            sprite.scale.set(30, 30, 1);
+            sprite.userData = { markerId: marker.id };
             
-            document.getElementById('markerTitle').value = currentMarker.title;
-            document.getElementById('markerDescription').value = '';
-            document.getElementById('markerUrl').value = '';
-            document.getElementById('markerForm').classList.remove('hidden');
-            document.getElementById('markerTitle').focus();
+            // FIX: Set render order to ensure it renders on top
+            sprite.renderOrder = 999;
+            
+            scene.add(sprite);
+            
+            marker.object = sprite;
+            return sprite;
         }
 
         function saveMarker() {
@@ -578,50 +806,88 @@
             currentMarker.description = description;
             currentMarker.url = url;
             
-            const markerGroup = new THREE.Group();
-
-            // Create the sphere
-            const geometry = new THREE.SphereGeometry(10, 16, 16);
-            const material = new THREE.MeshBasicMaterial({ 
-                color: markerTypes[currentMarker.type].color,
-                transparent: true,
-                opacity: 0.8
-            });
-            const markerSphere = new THREE.Mesh(geometry, material);
-            markerGroup.add(markerSphere);
-
-            // Create the icon above the sphere
-            const canvas = createMarkerIcon(currentMarker.type, markerTypes[currentMarker.type].color);
-            const texture = new THREE.CanvasTexture(canvas);
-            const iconGeometry = new THREE.PlaneGeometry(30, 30);
-            const iconMaterial = new THREE.MeshBasicMaterial({ 
-                map: texture,
-                transparent: true,
-                side: THREE.DoubleSide
-            });
-            const icon = new THREE.Mesh(iconGeometry, iconMaterial);
-            icon.position.y = 25; // Position above the sphere
-            markerGroup.add(icon);
-
-            // Make icon always face camera
-            icon.lookAt(camera.position);
-
-            markerGroup.position.set(...currentMarker.position);
-            markerGroup.userData = { markerId: currentMarker.id };
-            scene.add(markerGroup);
-
-            currentMarker.object = markerGroup;
-            markers.push(currentMarker);
+            // Remove preview marker
+            removePreviewMarker();
+            
+            if (editingMarkerId) {
+                // Update existing marker
+                const index = markers.findIndex(m => m.id === editingMarkerId);
+                if (index !== -1) {
+                    // Remove old marker from scene
+                    if (markers[index].object) {
+                        scene.remove(markers[index].object);
+                    }
+                    // Update marker data
+                    markers[index] = {...currentMarker};
+                    // Create new marker object
+                    createMarkerObject(markers[index]);
+                }
+            } else {
+                // Create new marker
+                createMarkerObject(currentMarker);
+                markers.push(currentMarker);
+            }
+            
             cancelMarker();
             updateMarkerList();
         }
 
         function cancelMarker() {
+            // Remove preview marker if it exists
+            removePreviewMarker();
+            
+            editingMarkerId = null;
             currentMarker = null;
             document.getElementById('markerForm').classList.add('hidden');
             document.getElementById('markerTitle').value = '';
             document.getElementById('markerDescription').value = '';
             document.getElementById('markerUrl').value = '';
+            document.getElementById('deleteMarkerBtn').style.display = 'none';
+        }
+
+        function deleteCurrentMarker() {
+            if (!editingMarkerId || !confirm('Are you sure you want to delete this marker?')) return;
+            
+            const index = markers.findIndex(m => m.id === editingMarkerId);
+            if (index !== -1) {
+                // Remove from scene
+                if (markers[index].object) {
+                    scene.remove(markers[index].object);
+                }
+                // Remove from array
+                markers.splice(index, 1);
+                updateMarkerList();
+                cancelMarker();
+            }
+        }
+
+        function editMarker(marker) {
+            // Remove any preview marker
+            removePreviewMarker();
+            
+            editingMarkerId = marker.id;
+            currentMarker = {...marker};
+            
+            document.getElementById('markerTitle').value = marker.title;
+            document.getElementById('markerDescription').value = marker.description || '';
+            document.getElementById('markerUrl').value = marker.url || '';
+            document.getElementById('deleteMarkerBtn').style.display = 'block';
+            
+            // Update type selector
+            document.querySelectorAll('.marker-type').forEach(t => t.classList.remove('selected'));
+            document.querySelector(`.marker-type[data-type="${marker.type}"]`).classList.add('selected');
+            selectedMarkerType = marker.type;
+            
+            // Update URL field visibility
+            const urlField = document.getElementById('markerUrl');
+            if (marker.type === 'link' || marker.type === 'video' || marker.type === 'audio') {
+                urlField.classList.remove('hidden');
+            } else {
+                urlField.classList.add('hidden');
+            }
+            
+            document.getElementById('markerForm').classList.remove('hidden');
+            document.getElementById('markerTitle').focus();
         }
 
         function updateMarkerList() {
@@ -646,8 +912,21 @@
                         <span class="marker-item-type">${marker.type}</span>
                     </div>
                     <div class="marker-item-description">${marker.description || 'No description'}</div>
+                    <div class="marker-item-actions">
+                        <button class="marker-action-btn edit" data-id="${marker.id}">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button class="marker-action-btn delete" data-id="${marker.id}">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    </div>
                 `;
-                markerItem.addEventListener('click', () => {
+                
+                // Click on marker item to view it
+                markerItem.addEventListener('click', (e) => {
+                    // Don't trigger if clicking action buttons
+                    if (e.target.closest('.marker-action-btn')) return;
+                    
                     const markerObj = marker.object;
                     if (markerObj) {
                         const markerPosition = markerObj.position.clone();
@@ -657,6 +936,32 @@
                     }
                     showMarkerInfo(marker);
                 });
+                
+                // Edit button
+                const editBtn = markerItem.querySelector('.marker-action-btn.edit');
+                editBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    editMarker(marker);
+                });
+                
+                // Delete button
+                const deleteBtn = markerItem.querySelector('.marker-action-btn.delete');
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (confirm(`Are you sure you want to delete "${marker.title}"?`)) {
+                        const index = markers.findIndex(m => m.id === marker.id);
+                        if (index !== -1) {
+                            // Remove from scene
+                            if (markers[index].object) {
+                                scene.remove(markers[index].object);
+                            }
+                            // Remove from array
+                            markers.splice(index, 1);
+                            updateMarkerList();
+                        }
+                    }
+                });
+                
                 markerList.appendChild(markerItem);
             });
             
@@ -665,13 +970,92 @@
         }
 
         function showMarkerInfo(marker) {
-            let info = `<strong>${marker.title}</strong><br><em>Type: ${marker.type}</em><br><br>${marker.description || 'No description'}<br><br>`;
-            if (marker.url) {
-                if (marker.type === 'link') info += `<a href="${marker.url}" target="_blank">Open Link</a>`;
-                else if (marker.type === 'video') info += `<a href="${marker.url}" target="_blank">Watch Video</a>`;
-                else if (marker.type === 'audio') info += `<a href="${marker.url}" target="_blank">Play Audio</a>`;
+            // Remove any existing info panel
+            removeInfoPanel();
+            
+            // Create new info panel
+            const infoPanel = document.createElement('div');
+            infoPanel.className = 'marker-info-panel';
+            
+            let content = `<button class="close-btn">&times;</button>
+                          <h4><i class="fas ${markerTypes[marker.type].icon}"></i> ${marker.title}</h4>
+                          <p><strong>Type:</strong> ${marker.type}</p>`;
+            
+            if (marker.description) {
+                content += `<p><strong>Description:</strong><br>${marker.description}</p>`;
             }
-            alert(info);
+            
+            if (marker.url) {
+                let linkText = 'Open Link';
+                if (marker.type === 'video') linkText = 'Watch Video';
+                else if (marker.type === 'audio') linkText = 'Play Audio';
+                
+                content += `<a href="${marker.url}" target="_blank">${linkText} <i class="fas fa-external-link-alt"></i></a>`;
+            }
+            
+            infoPanel.innerHTML = content;
+            
+            // Add close button functionality
+            const closeBtn = infoPanel.querySelector('.close-btn');
+            closeBtn.addEventListener('click', () => {
+                removeInfoPanel();
+            });
+            
+            // Position the panel near the marker on screen
+            positionInfoPanelAtMarker(infoPanel, marker);
+            
+            // Add to viewer container
+            document.querySelector('.viewer-container').appendChild(infoPanel);
+            activeInfoPanel = infoPanel;
+            
+            // Auto-close after 10 seconds
+            setTimeout(() => {
+                if (activeInfoPanel === infoPanel) {
+                    removeInfoPanel();
+                }
+            }, 10000);
+        }
+
+        function positionInfoPanelAtMarker(panel, marker) {
+            const markerPosition = new THREE.Vector3(...marker.position);
+            const vector = markerPosition.clone();
+            
+            // Project 3D position to 2D screen coordinates
+            vector.project(camera);
+            
+            const viewerRect = document.getElementById('viewer').getBoundingClientRect();
+            const x = (vector.x * 0.5 + 0.5) * viewerRect.width;
+            const y = (-vector.y * 0.5 + 0.5) * viewerRect.height;
+            
+            // Position panel near marker, adjusting if near edges
+            let left = x + 20;
+            let top = y + 20;
+            
+            // Adjust if panel would go off screen
+            const panelWidth = panel.offsetWidth || 250;
+            const panelHeight = panel.offsetHeight || 200;
+            
+            if (left + panelWidth > viewerRect.width) {
+                left = x - panelWidth - 20;
+            }
+            
+            if (top + panelHeight > viewerRect.height) {
+                top = y - panelHeight - 20;
+            }
+            
+            // Ensure panel stays within bounds
+            left = Math.max(10, Math.min(viewerRect.width - panelWidth - 10, left));
+            top = Math.max(10, Math.min(viewerRect.height - panelHeight - 10, top));
+            
+            panel.style.left = left + 'px';
+            panel.style.top = top + 'px';
+        }
+
+        function removeInfoPanel() {
+            if (activeInfoPanel) {
+                activeInfoPanel.remove();
+                activeInfoPanel = null;
+            }
         }
 
         function clearAllMarkers() {
@@ -679,20 +1063,18 @@
             if (confirm(`Are you sure you want to remove all ${markers.length} markers?`)) {
                 markers.forEach(marker => {
                     if (marker.object) {
-                        // Remove all children and dispose their geometries/materials
-                        marker.object.children.forEach(child => {
-                            scene.remove(child);
-                            if (child.geometry) child.geometry.dispose();
-                            if (child.material) {
-                                if (child.material.map) child.material.map.dispose();
-                                child.material.dispose();
-                            }
-                        });
                         scene.remove(marker.object);
+                        if (marker.object.material) {
+                            if (marker.object.material.map) marker.object.material.map.dispose();
+                            marker.object.material.dispose();
+                        }
                     }
                 });
                 markers = [];
                 updateMarkerList();
+                removeInfoPanel();
+                // Remove preview marker if it exists
+                removePreviewMarker();
             }
         }
 
@@ -700,6 +1082,7 @@
             camera.rotation.set(0, 0, 0);
             camera.fov = 75;
             camera.updateProjectionMatrix();
+            removeInfoPanel();
         }
 
         function toggleAutoRotate() {
@@ -724,7 +1107,6 @@
             document.getElementById('exportModal').classList.remove('hidden');
         }
 
-        // UPDATED EXPORT FUNCTION WITH IMPROVED PANNING
         function generateExportCode() {
             const markerData = markers.map(marker => ({
                 type: marker.type,
@@ -746,7 +1128,7 @@
             const safeImageName = escapeHtml(currentImageName);
             const markerJson = JSON.stringify(markerData);
             
-            // Build the export HTML with improved panning
+            // Build the export HTML with IN-WORLD marker info panels
             return '<!DOCTYPE html>\n' +
 '<html lang="en">\n' +
 '<head>\n' +
@@ -754,25 +1136,53 @@
 '    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n' +
 '    <title>360° Viewer: ' + safeImageName + '</title>\n' +
 '    <style>\n' +
-'        body { margin: 0; overflow: hidden; background: #000; }\n' +
+'        body { margin: 0; overflow: hidden; background: #000; font-family: \'Segoe UI\', Tahoma, Geneva, Verdana, sans-serif; }\n' +
 '        canvas { display: block; }\n' +
-'        .marker-info { \n' +
+'        .marker-info-panel { \n' +
 '            position: absolute; \n' +
-'            bottom: 20px; \n' +
-'            left: 20px; \n' +
-'            background: rgba(0,0,0,0.8); \n' +
+'            background: rgba(0,0,0,0.9); \n' +
 '            color: white; \n' +
-'            padding: 15px; \n' +
-'            border-radius: 5px;\n' +
-'            max-width: 300px;\n' +
-'            display: none;\n' +
+'            padding: 15px;\n' +
+'            border-radius: 8px;\n' +
 '            border-left: 4px solid #00b4d8;\n' +
+'            max-width: 300px;\n' +
+'            min-width: 250px;\n' +
+'            box-shadow: 0 5px 15px rgba(0,0,0,0.5);\n' +
+'            z-index: 1000;\n' +
+'            pointer-events: auto;\n' +
+'            backdrop-filter: blur(5px);\n' +
+'            transition: opacity 0.3s ease;\n' +
+'            font-size: 14px;\n' +
 '        }\n' +
-'        .marker-info a {\n' +
+'        .marker-info-panel h4 {\n' +
+'            color: #00b4d8;\n' +
+'            margin: 0 0 10px 0;\n' +
+'            font-size: 16px;\n' +
+'        }\n' +
+'        .marker-info-panel a {\n' +
 '            color: #4cc9f0;\n' +
 '            text-decoration: none;\n' +
 '            display: inline-block;\n' +
 '            margin-top: 10px;\n' +
+'            padding: 6px 12px;\n' +
+'            background: rgba(76, 201, 240, 0.1);\n' +
+'            border-radius: 4px;\n' +
+'        }\n' +
+'        .marker-info-panel .close-btn {\n' +
+'            position: absolute;\n' +
+'            top: 5px;\n' +
+'            right: 5px;\n' +
+'            background: transparent;\n' +
+'            border: none;\n' +
+'            color: #aaa;\n' +
+'            cursor: pointer;\n' +
+'            font-size: 18px;\n' +
+'            width: 24px;\n' +
+'            height: 24px;\n' +
+'            display: flex;\n' +
+'            align-items: center;\n' +
+'            justify-content: center;\n' +
+'            border-radius: 50%;\n' +
 '        }\n' +
 '        .instructions {\n' +
 '            position: absolute;\n' +
@@ -788,18 +1198,27 @@
 '            border: 2px solid #00b4d8;\n' +
 '        }\n' +
 '        .hidden { display: none; }\n' +
+'        #startBtn {\n' +
+'            margin-top: 15px; \n' +
+'            padding: 10px 20px; \n' +
+'            background: #00b4d8; \n' +
+'            color: white; \n' +
+'            border: none; \n' +
+'            border-radius: 5px; \n' +
+'            cursor: pointer;\n' +
+'            font-weight: bold;\n' +
+'        }\n' +
 '    </style>\n' +
 '</head>\n' +
 '<body>\n' +
 '    <div id="container"></div>\n' +
-'    <div id="markerInfo" class="marker-info"></div>\n' +
 '    \n' +
 '    <div class="instructions" id="instructions">\n' +
 '        <h3 style="color: #00b4d8; margin-top: 0;">360° Image Viewer</h3>\n' +
 '        <p><strong>' + safeImageName + '</strong></p>\n' +
 '        <p>Drag to look around • Scroll to zoom</p>\n' +
 '        <p>Click on markers for information</p>\n' +
-'        <button id="startBtn" style="margin-top: 15px; padding: 10px 20px; background: #00b4d8; color: white; border: none; border-radius: 5px; cursor: pointer;">Start Exploring</button>\n' +
+'        <button id="startBtn">Start Exploring</button>\n' +
 '    </div>\n' +
 '\n' +
 '    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>\n' +
@@ -829,21 +1248,10 @@
 '        scene.add(sphere);\n' +
 '        \n' +
 '        const markers = ' + markerJson + ';\n' +
+'        let activeInfoPanel = null;\n' +
 '        \n' +
 '        markers.forEach(marker => {\n' +
-'            const markerGroup = new THREE.Group();\n' +
-'            \n' +
-'            // Create marker sphere\n' +
-'            const markerGeometry = new THREE.SphereGeometry(10, 16, 16);\n' +
-'            const markerMaterial = new THREE.MeshBasicMaterial({ \n' +
-'                color: marker.color,\n' +
-'                transparent: true,\n' +
-'                opacity: 0.8\n' +
-'            });\n' +
-'            const markerSphere = new THREE.Mesh(markerGeometry, markerMaterial);\n' +
-'            markerGroup.add(markerSphere);\n' +
-'            \n' +
-'            // Create icon\n' +
+'            // Create icon on canvas\n' +
 '            const iconCanvas = document.createElement("canvas");\n' +
 '            const iconSize = 64;\n' +
 '            iconCanvas.width = iconSize;\n' +
@@ -852,22 +1260,22 @@
 '            \n' +
 '            // Draw icon background\n' +
 '            iconCtx.beginPath();\n' +
-'            iconCtx.arc(iconSize/2, iconSize/2, iconSize/2 - 2, 0, Math.PI * 2);\n' +
+'            iconCtx.arc(iconSize/2, iconSize/2, iconSize/2 - 4, 0, Math.PI * 2);\n' +
 '            iconCtx.fillStyle = "#" + marker.color.toString(16).padStart(6, "0");\n' +
 '            iconCtx.fill();\n' +
 '            iconCtx.strokeStyle = "#ffffff";\n' +
-'            iconCtx.lineWidth = 2;\n' +
+'            iconCtx.lineWidth = 3;\n' +
 '            iconCtx.stroke();\n' +
 '            \n' +
-'            // Draw icon character\n' +
+'            // Draw Font Awesome icon\n' +
 '            iconCtx.fillStyle = "white";\n' +
-'            iconCtx.font = "bold 24px Arial";\n' +
+'            iconCtx.font = "bold 32px Arial";\n' +
 '            iconCtx.textAlign = "center";\n' +
 '            iconCtx.textBaseline = "middle";\n' +
 '            \n' +
 '            const iconChar = {\n' +
-'                info: "i",\n' +
-'                link: "↗",\n' +
+'                info: "ⓘ",\n' +
+'                link: "🔗",\n' +
 '                video: "▶",\n' +
 '                audio: "♪",\n' +
 '                warning: "⚠",\n' +
@@ -875,26 +1283,26 @@
 '            }[marker.type];\n' +
 '            \n' +
 '            iconCtx.fillText(iconChar, iconSize/2, iconSize/2);\n' +
-'            \n' +
-'            const iconTexture = new THREE.CanvasTexture(iconCanvas);\n' +
-'            const iconGeometry = new THREE.PlaneGeometry(30, 30);\n' +
-'            const iconMaterial = new THREE.MeshBasicMaterial({ \n' +
-'                map: iconTexture,\n' +
+'            // Create sprite\n' +
+'            const markerTexture = new THREE.CanvasTexture(iconCanvas);\n' +
+'            const spriteMaterial = new THREE.SpriteMaterial({ \n' +
+'                map: markerTexture,\n' +
 '                transparent: true,\n' +
-'                side: THREE.DoubleSide\n' +
+'                opacity: 0.9,\n' +
+'                depthWrite: false,\n' +
+'                depthTest: false,\n' +
+'                alphaTest: 0.1\n' +
 '            });\n' +
-'            const icon = new THREE.Mesh(iconGeometry, iconMaterial);\n' +
-'            icon.position.y = 25;\n' +
-'            markerGroup.add(icon);\n' +
-'            \n' +
-'            markerGroup.position.set(marker.position[0], marker.position[1], marker.position[2]);\n' +
-'            markerGroup.userData = marker;\n' +
-'            scene.add(markerGroup);\n' +
+'            const sprite = new THREE.Sprite(spriteMaterial);\n' +
+'            sprite.position.set(marker.position[0], marker.position[1], marker.position[2]);\n' +
+'            sprite.scale.set(30, 30, 1);\n' +
+'            sprite.userData = marker;\n' +
+'            sprite.renderOrder = 999;\n' +
+'            scene.add(sprite);\n' +
 '        });\n' +
 '        \n' +
 '        camera.position.set(0, 0, 0.1);\n' +
 '        \n' +
-'        // IMPROVED PANNING SYSTEM - Same as main app\n' +
 '        let isMouseDown = false;\n' +
 '        let previousMousePosition = { x: 0, y: 0 };\n' +
 '        let targetRotation = new THREE.Euler(0, 0, 0, "YXZ");\n' +
@@ -910,18 +1318,12 @@
 '            const deltaX = e.clientX - previousMousePosition.x;\n' +
 '            const deltaY = e.clientY - previousMousePosition.y;\n' +
 '            \n' +
-'            // Update target rotation\n' +
 '            targetRotation.y -= deltaX * 0.005;\n' +
 '            targetRotation.x -= deltaY * 0.005;\n' +
-'            \n' +
-'            // Limit vertical rotation to prevent flipping\n' +
 '            targetRotation.x = Math.max(-Math.PI/2.5, Math.min(Math.PI/2.5, targetRotation.x));\n' +
 '            \n' +
-'            // Apply the rotation to a target vector\n' +
 '            const targetVector = new THREE.Vector3(0, 0, -1);\n' +
 '            targetVector.applyEuler(targetRotation);\n' +
-'            \n' +
-'            // Make camera look at the target direction\n' +
 '            camera.lookAt(targetVector);\n' +
 '            \n' +
 '            previousMousePosition = { x: e.clientX, y: e.clientY };\n' +
@@ -951,18 +1353,12 @@
 '            const deltaX = e.touches[0].clientX - previousMousePosition.x;\n' +
 '            const deltaY = e.touches[0].clientY - previousMousePosition.y;\n' +
 '            \n' +
-'            // Update target rotation\n' +
 '            targetRotation.y -= deltaX * 0.005;\n' +
 '            targetRotation.x -= deltaY * 0.005;\n' +
-'            \n' +
-'            // Limit vertical rotation to prevent flipping\n' +
 '            targetRotation.x = Math.max(-Math.PI/2.5, Math.min(Math.PI/2.5, targetRotation.x));\n' +
 '            \n' +
-'            // Apply the rotation to a target vector\n' +
 '            const targetVector = new THREE.Vector3(0, 0, -1);\n' +
 '            targetVector.applyEuler(targetRotation);\n' +
-'            \n' +
-'            // Make camera look at the target direction\n' +
 '            camera.lookAt(targetVector);\n' +
 '            \n' +
 '            previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };\n' +
@@ -973,6 +1369,37 @@
 '        const raycaster = new THREE.Raycaster();\n' +
 '        const mouse = new THREE.Vector2();\n' +
 '        \n' +
+'        function removeInfoPanel() {\n' +
+'            if (activeInfoPanel) {\n' +
+'                activeInfoPanel.remove();\n' +
+'                activeInfoPanel = null;\n' +
+'            }\n' +
+'        }\n' +
+'        \n' +
+'        function positionInfoPanelAtMarker(panel, marker) {\n' +
+'            const markerPosition = new THREE.Vector3(marker.position[0], marker.position[1], marker.position[2]);\n' +
+'            const vector = markerPosition.clone();\n' +
+'            vector.project(camera);\n' +
+'            \n' +
+'            const x = (vector.x * 0.5 + 0.5) * window.innerWidth;\n' +
+'            const y = (-vector.y * 0.5 + 0.5) * window.innerHeight;\n' +
+'            \n' +
+'            let left = x + 20;\n' +
+'            let top = y + 20;\n' +
+'            \n' +
+'            const panelWidth = panel.offsetWidth || 250;\n' +
+'            const panelHeight = panel.offsetHeight || 200;\n' +
+'            \n' +
+'            if (left + panelWidth > window.innerWidth) left = x - panelWidth - 20;\n' +
+'            if (top + panelHeight > window.innerHeight) top = y - panelHeight - 20;\n' +
+'            \n' +
+'            left = Math.max(10, Math.min(window.innerWidth - panelWidth - 10, left));\n' +
+'            top = Math.max(10, Math.min(window.innerHeight - panelHeight - 10, top));\n' +
+'            \n' +
+'            panel.style.left = left + "px";\n' +
+'            panel.style.top = top + "px";\n' +
+'        }\n' +
+'        \n' +
 '        function onMouseClick(event) {\n' +
 '            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;\n' +
 '            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;\n' +
@@ -981,20 +1408,40 @@
 '            const intersects = raycaster.intersectObjects(markerObjects);\n' +
 '            if (intersects.length > 0) {\n' +
 '                const marker = intersects[0].object.userData;\n' +
-'                const infoDiv = document.getElementById("markerInfo");\n' +
-'                let content = "<strong>" + marker.title + "</strong><br>";\n' +
-'                content += "<em>" + marker.type + "</em><br><br>";\n' +
-'                content += marker.description || "No description";\n' +
-'                if (marker.url) {\n' +
-'                    content += "<br><br><a href=\\"" + marker.url + "\\" target=\\"_blank\\">";\n' +
-'                    if (marker.type === "link") content += "Open Link";\n' +
-'                    else if (marker.type === "video") content += "Watch Video";\n' +
-'                    else if (marker.type === "audio") content += "Play Audio";\n' +
-'                    content += "</a>";\n' +
+'                removeInfoPanel();\n' +
+'                \n' +
+'                const infoPanel = document.createElement("div");\n' +
+'                infoPanel.className = "marker-info-panel";\n' +
+'                \n' +
+'                let content = \'<button class="close-btn">&times;</button>\';\n' +
+'                content += \'<h4>\' + marker.title + \'</h4>\';\n' +
+'                content += \'<p><strong>Type:</strong> \' + marker.type + \'</p>\';\n' +
+'                if (marker.description) {\n' +
+'                    content += \'<p><strong>Description:</strong><br>\' + marker.description + \'</p>\';\n' +
 '                }\n' +
-'                infoDiv.innerHTML = content;\n' +
-'                infoDiv.style.display = "block";\n' +
-'                setTimeout(() => { infoDiv.style.display = "none"; }, 10000);\n' +
+'                if (marker.url) {\n' +
+'                    let linkText = "Open Link";\n' +
+'                    if (marker.type === "video") linkText = "Watch Video";\n' +
+'                    else if (marker.type === "audio") linkText = "Play Audio";\n' +
+'                    content += \'<a href="\' + marker.url + \'" target="_blank">\' + linkText + \'</a>\';\n' +
+'                }\n' +
+'                \n' +
+'                infoPanel.innerHTML = content;\n' +
+'                document.body.appendChild(infoPanel);\n' +
+'                activeInfoPanel = infoPanel;\n' +
+'                \n' +
+'                // Position panel\n' +
+'                positionInfoPanelAtMarker(infoPanel, marker);\n' +
+'                \n' +
+'                // Add close button functionality\n' +
+'                infoPanel.querySelector(".close-btn").addEventListener("click", removeInfoPanel);\n' +
+'                \n' +
+'                // Auto-close after 10 seconds\n' +
+'                setTimeout(() => {\n' +
+'                    if (activeInfoPanel === infoPanel) removeInfoPanel();\n' +
+'                }, 10000);\n' +
+'            } else {\n' +
+'                removeInfoPanel();\n' +
 '            }\n' +
 '        }\n' +
 '        \n' +
@@ -1016,14 +1463,6 @@
 '        \n' +
 '        function animate() {\n' +
 '            requestAnimationFrame(animate);\n' +
-'            \n' +
-'            // Make marker icons face the camera\n' +
-'            scene.children.forEach(child => {\n' +
-'                if (child.isGroup && child.children[1]) {\n' +
-'                    child.children[1].lookAt(camera.position);\n' +
-'                }\n' +
-'            });\n' +
-'            \n' +
 '            renderer.render(scene, camera);\n' +
 '        }\n' +
 '        animate();\n' +
@@ -1063,30 +1502,25 @@
             camera.aspect = document.getElementById('viewer').offsetWidth / document.getElementById('viewer').offsetHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(document.getElementById('viewer').offsetWidth, document.getElementById('viewer').offsetHeight);
+            
+            // Reposition active info panel if it exists
+            if (activeInfoPanel) {
+                const markerId = activeInfoPanel.dataset.markerId;
+                if (markerId) {
+                    const marker = markers.find(m => m.id.toString() === markerId);
+                    if (marker) {
+                        positionInfoPanelAtMarker(activeInfoPanel, marker);
+                    }
+                }
+            }
         }
 
         function animate() {
             requestAnimationFrame(animate);
             if (autoRotate) {
                 camera.rotation.y += 0.002;
-                // Also apply the rotation limit during auto-rotate
                 camera.rotation.x = Math.max(-Math.PI/4, Math.min(Math.PI/4, camera.rotation.x));
             }
-            
-            // Make marker icons always face the camera
-            markers.forEach(marker => {
-                if (marker.object && marker.object.children[1]) {
-                    marker.object.children[1].lookAt(camera.position);
-                }
-            });
-
-            // Make preview icon face camera
-            if (previewMarker && previewMarker.children[1]) {
-                previewMarker.children[1].lookAt(camera.position);
-            }
-            
-            // Update preview indicator position
-            updatePreviewIndicator();
             
             renderer.render(scene, camera);
         }
