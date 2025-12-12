@@ -176,6 +176,58 @@
             color: white;
         }
         
+        /* Project item styles */
+        .project-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-left: 4px solid #2a9d8f;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .project-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateX(5px);
+        }
+        
+        .project-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .project-item-title {
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .project-item-meta {
+            font-size: 0.8rem;
+            color: #aaa;
+            margin-top: 5px;
+        }
+        
+        /* Clear projects button */
+        #clearProjectsBtn {
+            margin-top: 15px;
+            background: #e63946;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            width: 100%;
+        }
+        
+        #clearProjectsBtn:hover {
+            background: #d00000;
+        }
+        
         @media (max-width: 1024px) { .main-container { flex-direction: column; } .left-panel { width: 100%; max-height: 40vh; } }
         @media (max-width: 768px) { .header { flex-direction: column; gap: 10px; text-align: center; } .marker-type-selector { grid-template-columns: repeat(2, 1fr); } }
     </style>
@@ -184,6 +236,12 @@
     <div class="header">
         <h1><i class="fas fa-globe-americas"></i> 360° Image Marker Tool</h1>
         <div class="header-controls">
+            <button class="button secondary" id="saveProjectBtn">
+                <i class="fas fa-save"></i> Save Project
+            </button>
+            <button class="button secondary" id="loadProjectBtn">
+                <i class="fas fa-folder-open"></i> Load Project
+            </button>
             <button class="button secondary" id="exportBtn">
                 <i class="fas fa-file-export"></i> Export as HTML
             </button>
@@ -292,6 +350,51 @@
         </div>
     </div>
 
+    <!-- Save/Load Project Modal -->
+    <div class="modal-overlay hidden" id="projectModal">
+        <div class="modal" style="max-width: 500px;">
+            <h3><i class="fas fa-project-diagram"></i> Project Management</h3>
+            
+            <div class="panel-section" style="margin-bottom: 20px; border: 1px solid #444; padding: 15px; border-radius: 5px;">
+                <h4><i class="fas fa-save"></i> Save Current Project</h4>
+                <p style="margin-bottom: 15px; color: #aaa; font-size: 0.9rem;">
+                    Save your image and all markers to continue editing later.
+                </p>
+                <input type="text" id="projectName" placeholder="Enter project name" style="width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 4px; background: rgba(255, 255, 255, 0.1); border: 1px solid #555; color: white;">
+                <button class="button" id="saveProjectConfirmBtn" style="width: 100%;">
+                    <i class="fas fa-save"></i> Save Project File
+                </button>
+            </div>
+            
+            <div class="panel-section" style="margin-bottom: 20px; border: 1px solid #444; padding: 15px; border-radius: 5px;">
+                <h4><i class="fas fa-folder-open"></i> Load Project</h4>
+                <p style="margin-bottom: 15px; color: #aaa; font-size: 0.9rem;">
+                    Load a previously saved project file.
+                </p>
+                <div class="upload-area" id="projectUploadArea" style="margin-bottom: 15px; padding: 20px;">
+                    <i class="fas fa-file-upload"></i>
+                    <p>Click or drag & drop project file</p>
+                    <p class="file-info">Only .json files exported from this tool</p>
+                    <input type="file" id="projectFileInput" accept=".json" style="display: none;">
+                </div>
+                
+                <div id="savedProjectsList" style="max-height: 200px; overflow-y: auto; margin-top: 15px;">
+                    <!-- Saved projects will be listed here -->
+                </div>
+                
+                <button class="button danger" id="clearProjectsBtn" style="margin-top: 15px; width: 100%;">
+                    <i class="fas fa-trash"></i> Clear All Saved Projects
+                </button>
+            </div>
+            
+            <div class="modal-buttons">
+                <button class="button secondary" id="closeProjectBtn">
+                    <i class="fas fa-times"></i> Close
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Global variables
         let scene, camera, renderer, sphere;
@@ -308,6 +411,10 @@
         let placementMode = false;
         let raycaster, mouse;
         let activeInfoPanel = null; // Track active info panel
+        
+        // Auto-save variables
+        let autoSaveInterval;
+        const AUTO_SAVE_KEY = '360Project_autoSave';
 
         const markerTypes = {
             info: { color: 0x4cc9f0, icon: 'fa-info-circle' },
@@ -391,6 +498,8 @@ function createMarkerIcon(type, color) {
             initThreeJS();
             updateMarkerList();
             updatePlacementStatus();
+            checkForAutoSave();
+            startAutoSave();
         }
 
         function setupEventListeners() {
@@ -449,6 +558,52 @@ function createMarkerIcon(type, color) {
                 document.getElementById('exportModal').classList.add('hidden');
             });
             document.getElementById('markerSearch').addEventListener('input', updateMarkerList);
+            
+            // Project management buttons
+            document.getElementById('saveProjectBtn').addEventListener('click', saveProject);
+            document.getElementById('loadProjectBtn').addEventListener('click', loadProject);
+            
+            // Project modal buttons
+            document.getElementById('saveProjectConfirmBtn').addEventListener('click', saveProjectToFile);
+            document.getElementById('closeProjectBtn').addEventListener('click', () => {
+                document.getElementById('projectModal').classList.add('hidden');
+            });
+            document.getElementById('clearProjectsBtn').addEventListener('click', clearProjectData);
+            
+            // Project file upload
+            document.getElementById('projectUploadArea').addEventListener('click', () => {
+                document.getElementById('projectFileInput').click();
+            });
+            document.getElementById('projectFileInput').addEventListener('change', (e) => {
+                if (e.target.files.length) {
+                    loadProjectFromFile(e.target.files[0]);
+                }
+            });
+            
+            // Drag and drop for project files
+            document.getElementById('projectUploadArea').addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.currentTarget.style.borderColor = '#90e0ef';
+                e.currentTarget.style.background = 'rgba(0, 180, 216, 0.15)';
+            });
+            document.getElementById('projectUploadArea').addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                e.currentTarget.style.borderColor = '#00b4d8';
+                e.currentTarget.style.background = 'rgba(0, 180, 216, 0.05)';
+            });
+            document.getElementById('projectUploadArea').addEventListener('drop', (e) => {
+                e.preventDefault();
+                e.currentTarget.style.borderColor = '#00b4d8';
+                e.currentTarget.style.background = 'rgba(0, 180, 216, 0.05)';
+                if (e.dataTransfer.files.length) {
+                    const file = e.dataTransfer.files[0];
+                    if (file.name.endsWith('.json')) {
+                        loadProjectFromFile(file);
+                    } else {
+                        alert('Please drop a .json project file.');
+                    }
+                }
+            });
         }
 
         function initThreeJS() {
@@ -757,6 +912,8 @@ function createSphere(imageUrl) {
                 }
                 // Remove preview marker if it exists
                 removePreviewMarker();
+                // Auto-save after image change
+                autoSaveProject();
             };
             reader.onerror = function() { alert('Error reading file. Please try again.'); };
             reader.readAsDataURL(file);
@@ -830,6 +987,7 @@ function createSphere(imageUrl) {
             
             cancelMarker();
             updateMarkerList();
+            autoSaveProject();
         }
 
         function cancelMarker() {
@@ -858,6 +1016,7 @@ function createSphere(imageUrl) {
                 markers.splice(index, 1);
                 updateMarkerList();
                 cancelMarker();
+                autoSaveProject();
             }
         }
 
@@ -958,6 +1117,7 @@ function createSphere(imageUrl) {
                             // Remove from array
                             markers.splice(index, 1);
                             updateMarkerList();
+                            autoSaveProject();
                         }
                     }
                 });
@@ -1075,6 +1235,7 @@ function createSphere(imageUrl) {
                 removeInfoPanel();
                 // Remove preview marker if it exists
                 removePreviewMarker();
+                autoSaveProject();
             }
         }
 
@@ -1523,6 +1684,254 @@ function createSphere(imageUrl) {
             }
             
             renderer.render(scene, camera);
+        }
+
+        // Project management functions
+        function saveProject() {
+            if (!currentImageDataUrl) {
+                alert('Please upload an image first.');
+                return;
+            }
+            
+            // Show save modal
+            document.getElementById('projectName').value = currentImageName.replace(/\.[^/.]+$/, "") || 'My360Project';
+            document.getElementById('projectModal').classList.remove('hidden');
+            loadSavedProjectsList();
+        }
+
+        function loadProject() {
+            document.getElementById('projectModal').classList.remove('hidden');
+            loadSavedProjectsList();
+        }
+
+        function saveProjectToFile() {
+            const projectName = document.getElementById('projectName').value.trim();
+            if (!projectName) {
+                alert('Please enter a project name.');
+                return;
+            }
+            
+            // Create project data object
+            const projectData = {
+                version: '1.0',
+                name: projectName,
+                timestamp: new Date().toISOString(),
+                image: {
+                    name: currentImageName,
+                    data: currentImageDataUrl
+                },
+                markers: markers.map(marker => ({
+                    id: marker.id,
+                    type: marker.type,
+                    title: marker.title,
+                    description: marker.description,
+                    url: marker.url,
+                    position: marker.position
+                }))
+            };
+            
+            // Create and download JSON file
+            const jsonStr = JSON.stringify(projectData, null, 2);
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${projectName.replace(/[^a-z0-9]/gi, '_')}_360project.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            // Save to localStorage for quick access
+            saveProjectToLocalStorage(projectData);
+            
+            alert(`Project saved as: ${a.download}`);
+            document.getElementById('projectModal').classList.add('hidden');
+        }
+
+        function loadProjectFromFile(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const projectData = JSON.parse(e.target.result);
+                    loadProjectData(projectData);
+                } catch (error) {
+                    alert('Error loading project file. Please make sure it\'s a valid project file from this tool.');
+                    console.error('Project load error:', error);
+                }
+            };
+            reader.onerror = function() {
+                alert('Error reading project file. Please try again.');
+            };
+            reader.readAsText(file);
+        }
+
+        function loadProjectData(projectData) {
+            // Clear existing markers
+            clearAllMarkers();
+            
+            // Load image
+            if (projectData.image && projectData.image.data) {
+                currentImageName = projectData.image.name || 'Loaded Project';
+                currentImageDataUrl = projectData.image.data;
+                createSphere(currentImageDataUrl);
+                document.getElementById('currentImageName').textContent = currentImageName;
+                document.getElementById('imageInfo').classList.remove('hidden');
+                document.getElementById('instructions').classList.add('hidden');
+            }
+            
+            // Load markers
+            if (projectData.markers && Array.isArray(projectData.markers)) {
+                markers = projectData.markers.map(markerData => {
+                    const marker = {
+                        ...markerData,
+                        object: null
+                    };
+                    createMarkerObject(marker);
+                    return marker;
+                });
+                updateMarkerList();
+            }
+            
+            document.getElementById('projectModal').classList.add('hidden');
+            alert(`Project "${projectData.name}" loaded successfully!`);
+        }
+
+        function saveProjectToLocalStorage(projectData) {
+            try {
+                // Get existing projects
+                const savedProjects = JSON.parse(localStorage.getItem('360Projects') || '[]');
+                
+                // Remove if already exists (update)
+                const existingIndex = savedProjects.findIndex(p => p.name === projectData.name);
+                if (existingIndex !== -1) {
+                    savedProjects[existingIndex] = projectData;
+                } else {
+                    savedProjects.push(projectData);
+                }
+                
+                // Keep only last 10 projects
+                const recentProjects = savedProjects.slice(-10);
+                localStorage.setItem('360Projects', JSON.stringify(recentProjects));
+                
+                return true;
+            } catch (error) {
+                console.error('Error saving to localStorage:', error);
+                return false;
+            }
+        }
+
+        function loadSavedProjectsList() {
+            const projectsList = document.getElementById('savedProjectsList');
+            projectsList.innerHTML = '';
+            
+            try {
+                const savedProjects = JSON.parse(localStorage.getItem('360Projects') || '[]');
+                
+                if (savedProjects.length === 0) {
+                    projectsList.innerHTML = '<p style="color: #aaa; text-align: center; padding: 20px;">No saved projects found</p>';
+                    return;
+                }
+                
+                // Sort by timestamp (newest first)
+                savedProjects.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                
+                savedProjects.forEach(project => {
+                    const projectItem = document.createElement('div');
+                    projectItem.className = 'project-item';
+                    
+                    const date = new Date(project.timestamp);
+                    const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    
+                    projectItem.innerHTML = `
+                        <div class="project-item-header">
+                            <div class="project-item-title">
+                                <i class="fas fa-project-diagram"></i>
+                                ${project.name}
+                            </div>
+                            <span class="marker-item-type">${project.markers?.length || 0} markers</span>
+                        </div>
+                        <div class="project-item-meta">
+                            ${project.image?.name || 'No image name'} • ${dateStr}
+                        </div>
+                    `;
+                    
+                    projectItem.addEventListener('click', () => {
+                        if (confirm(`Load project "${project.name}"? This will replace your current work.`)) {
+                            loadProjectData(project);
+                        }
+                    });
+                    
+                    projectsList.appendChild(projectItem);
+                });
+            } catch (error) {
+                console.error('Error loading projects list:', error);
+                projectsList.innerHTML = '<p style="color: #e63946; text-align: center; padding: 20px;">Error loading saved projects</p>';
+            }
+        }
+
+        function clearProjectData() {
+            if (confirm('Clear all project data? This will remove all saved projects from this browser.')) {
+                localStorage.removeItem('360Projects');
+                localStorage.removeItem(AUTO_SAVE_KEY);
+                loadSavedProjectsList();
+                alert('All saved projects have been cleared.');
+            }
+        }
+
+        function startAutoSave() {
+            // Stop any existing auto-save
+            if (autoSaveInterval) clearInterval(autoSaveInterval);
+            
+            // Auto-save every 30 seconds if there are changes
+            autoSaveInterval = setInterval(() => {
+                if (currentImageDataUrl && markers.length > 0) {
+                    autoSaveProject();
+                }
+            }, 30000); // 30 seconds
+        }
+
+        function autoSaveProject() {
+            try {
+                const autoSaveData = {
+                    version: '1.0',
+                    name: 'Auto-saved Project',
+                    timestamp: new Date().toISOString(),
+                    image: {
+                        name: currentImageName,
+                        data: currentImageDataUrl
+                    },
+                    markers: markers.map(marker => ({
+                        id: marker.id,
+                        type: marker.type,
+                        title: marker.title,
+                        description: marker.description,
+                        url: marker.url,
+                        position: marker.position
+                    }))
+                };
+                
+                localStorage.setItem(AUTO_SAVE_KEY, JSON.stringify(autoSaveData));
+            } catch (error) {
+                console.error('Auto-save failed:', error);
+            }
+        }
+
+        function checkForAutoSave() {
+            try {
+                const autoSaveData = localStorage.getItem(AUTO_SAVE_KEY);
+                if (autoSaveData) {
+                    if (confirm('Found auto-saved work from a previous session. Would you like to restore it?')) {
+                        const projectData = JSON.parse(autoSaveData);
+                        loadProjectData(projectData);
+                    } else {
+                        // Clear auto-save if user doesn't want it
+                        localStorage.removeItem(AUTO_SAVE_KEY);
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking auto-save:', error);
+            }
         }
 
         document.addEventListener('DOMContentLoaded', init);
